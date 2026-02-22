@@ -1,6 +1,21 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
+const multer = require("multer");
+const path = require("path");
+
+/* ================= Multer Setup ================= */
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/"); // Make sure this folder exists
+  },
+  filename: function (req, file, cb) {
+    const uniqueName = Date.now() + path.extname(file.originalname);
+    cb(null, uniqueName);
+  },
+});
+
+const upload = multer({ storage });
 
 /* ================= APPLICATION MODEL ================= */
 const applicationSchema = new mongoose.Schema({
@@ -9,58 +24,28 @@ const applicationSchema = new mongoose.Schema({
   email: { type: String, required: true },
   phone: { type: String, required: true },
   resumeUrl: { type: String },
-  status: { type: String, default: "pending" }, // pending / reviewed
+  status: { type: String, default: "pending" },
 }, { timestamps: true });
 
 const Application = mongoose.models.Application || mongoose.model("Application", applicationSchema);
 
-/* ================= 1. GET ALL APPLICATIONS ================= */
-router.get("/", async (req, res) => {
+/* ================= SUBMIT APPLICATION WITH FILE ================= */
+router.post("/apply", upload.single("resume"), async (req, res) => {
   try {
-    const apps = await Application.find().sort({ createdAt: -1 });
-    res.json(apps);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch applications" });
-  }
-});
+    const { jobTitle, name, email, phone } = req.body;
 
-/* ================= 2. UPDATE STATUS (Fixes Buttons) ================= */
-// URL: PATCH http://localhost:5000/api/applications/:id
-router.patch("/:id", async (req, res) => {
-  try {
-    const { status } = req.body;
-    
-    // Validate Status
-    if (!["pending", "reviewed"].includes(status)) {
-      return res.status(400).json({ error: "Invalid status update" });
+    if (!jobTitle || !name || !email || !phone || !req.file) {
+      return res.status(400).json({ success: false, message: "All fields including resume are required" });
     }
 
-    const updatedApp = await Application.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true } // Return the updated document
-    );
-
-    if (!updatedApp) {
-      return res.status(404).json({ error: "Application not found" });
-    }
-
-    res.json(updatedApp);
-  } catch (err) {
-    console.error("Update Error:", err);
-    res.status(500).json({ error: "Failed to update status" });
-  }
-});
-
-/* ================= 3. SUBMIT APPLICATION ================= */
-router.post("/apply", async (req, res) => {
-  try {
-    const { jobTitle, name, email, phone, resumeUrl } = req.body;
+    const resumeUrl = `/uploads/${req.file.filename}`; // Save relative path
     const newApp = new Application({ jobTitle, name, email, phone, resumeUrl });
     await newApp.save();
+
     res.status(201).json({ success: true, application: newApp });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Failed to submit" });
+    console.error("Application Error:", err);
+    res.status(500).json({ success: false, message: "Failed to submit application" });
   }
 });
 
