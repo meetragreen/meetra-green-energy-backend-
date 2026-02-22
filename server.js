@@ -135,7 +135,19 @@ app.post("/api/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ error: "Invalid credentials" });
 
-    res.json({ message: "Login successful" });
+    // ✅ REMOVE PASSWORD BEFORE SENDING
+    const userData = {
+      _id: user._id,
+      fullName: user.fullName || user.name,
+      email: user.email,
+      role: user.role,
+      systemId: user.systemId || null,
+    };
+
+    res.json({
+      message: "Login successful",
+      user: userData,
+    });
   } catch (err) {
     res.status(500).json({ error: "Login error" });
   }
