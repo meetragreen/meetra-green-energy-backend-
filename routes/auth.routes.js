@@ -1,27 +1,34 @@
-const express = require("express");
-const router = express.Router();
+const mongoose = require("mongoose");
 
-/* LOGIN */
-router.post("/login", (req, res) => {
-  const { email, password } = req.body;
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
-  res.json({
-    success: true,
-    message: "Login successful",
-    email,
-  });
-});
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+    },
 
-/* SIGNUP */
-router.post("/signup", (req, res) => {
-  const { name, email, password } = req.body;
+    password: {
+      type: String,
+      required: true,
+    },
 
-  res.json({
-    success: true,
-    message: "Signup successful",
-    name,
-    email,
-  });
-});
+    role: {
+      type: String,
+      enum: ["admin", "employee"],
+      default: "employee",
+    },
+  },
+  {
+    timestamps: true, // automatically adds createdAt & updatedAt
+  }
+);
 
-module.exports = router;
+module.exports = mongoose.model("User", userSchema);
