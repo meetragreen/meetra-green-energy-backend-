@@ -1,16 +1,32 @@
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
+
+/* ================= GET ALL EMPLOYEES ================= */
+router.get("/", async (req, res) => {
+  try {
+    const Employee = mongoose.models.Employee;
+
+    if (!Employee) {
+      return res.status(500).json({ error: "Employee model not found" });
+    }
+
+    const employees = await Employee.find()
+      .select("-password")
+      .sort({ joinedDate: -1 });
+
+    res.json(employees);
+  } catch (err) {
+    console.error("GET Employees Error:", err);
+    res.status(500).json({ error: "Failed to fetch employees" });
+  }
+});
 
 /* ================= ADD EMPLOYEE ================= */
 router.post("/", async (req, res) => {
   try {
     const Employee = mongoose.models.Employee;
-
-    if (!Employee) {
-      return res.status(500).json({ error: "Employee model not initialized" });
-    }
+    const bcrypt = require("bcryptjs");
 
     const { employeeId, name, email, password, role } = req.body;
 
@@ -38,29 +54,17 @@ router.post("/", async (req, res) => {
 
     res.status(201).json({
       message: "Employee added successfully",
-      employee: newEmployee,
+      employee: {
+        _id: newEmployee._id,
+        employeeId: newEmployee.employeeId,
+        name: newEmployee.name,
+        email: newEmployee.email,
+        role: newEmployee.role,
+      },
     });
-
   } catch (err) {
-    console.error("Add Employee Error:", err);
-    res.status(500).json({ error: "Server error while adding employee" });
-  }
-});
-
-/* ================= GET ALL EMPLOYEES ================= */
-router.get("/", async (req, res) => {
-  try {
-    const Employee = mongoose.models.Employee;
-
-    if (!Employee) {
-      return res.status(500).json({ error: "Employee model is not initialized yet" });
-    }
-
-    const employees = await Employee.find().sort({ joinedDate: -1 });
-    res.json(employees);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to fetch employees" });
+    console.error("POST Employee Error:", err);
+    res.status(500).json({ error: "Failed to add employee" });
   }
 });
 
@@ -68,9 +72,16 @@ router.get("/", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const Employee = mongoose.models.Employee;
-    await Employee.findByIdAndDelete(req.params.id);
+
+    const deleted = await Employee.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ error: "Employee not found" });
+    }
+
     res.json({ message: "Employee removed successfully" });
   } catch (err) {
+    console.error("DELETE Employee Error:", err);
     res.status(500).json({ error: "Delete failed" });
   }
 });
