@@ -13,6 +13,15 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
       lowercase: true,
+      trim: true,
+    },
+
+    // Optional Employee ID (only for employees)
+    employeeId: {
+      type: String,
+      unique: true,
+      sparse: true, // allows null values for normal users
+      trim: true,
     },
 
     password: {
@@ -22,12 +31,12 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["admin", "employee"],
-      default: "employee",
+      enum: ["admin", "employee", "user"], // ✅ added user
+      default: "user", // ✅ default is normal user
     },
   },
   {
-    timestamps: true, // automatically adds createdAt & updatedAt
+    timestamps: true, // adds createdAt & updatedAt
   }
 );
 
