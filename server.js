@@ -1,3 +1,4 @@
+/* ================= IMPORTS ================= */
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -15,8 +16,6 @@ const PORT = process.env.PORT || 5000;
 
 /* ================= MIDDLEWARE ================= */
 app.use(express.json());
-
-// ✅ CORS (Local + Live Domain)
 app.use(
   cors({
     origin: [
@@ -87,6 +86,14 @@ const OpeningSchema = new mongoose.Schema({
 });
 const Opening = mongoose.model("Opening", OpeningSchema);
 
+// Impact Stats Model
+const impactSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true }, // e.g., "projects"
+  target: { type: Number, default: 0 },
+  suffix: { type: String, default: "" },
+});
+const Impact = mongoose.model("Impact", impactSchema);
+
 /* ================= UTIL FUNCTIONS ================= */
 const generateSystemId = () => {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
@@ -95,11 +102,10 @@ const generateSystemId = () => {
 
 /* ================= AUTH ROUTES ================= */
 
-// ✅ SIGNUP
+// SIGNUP
 app.post("/api/signup", async (req, res) => {
   try {
     const { fullName, email, password } = req.body;
-
     if (!fullName || !email || !password)
       return res.status(400).json({ error: "All fields required" });
 
@@ -125,11 +131,10 @@ app.post("/api/signup", async (req, res) => {
   }
 });
 
-// ✅ LOGIN
+// LOGIN
 app.post("/api/login", async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password)
       return res.status(400).json({ error: "Credentials required" });
 
@@ -139,13 +144,10 @@ app.post("/api/login", async (req, res) => {
       }).select("+password")) ||
       (await User.findOne({ email }).select("+password"));
 
-    if (!user)
-      return res.status(400).json({ error: "Invalid credentials" });
+    if (!user) return res.status(400).json({ error: "Invalid credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch)
-      return res.status(400).json({ error: "Invalid credentials" });
+    if (!isMatch) return res.status(400).json({ error: "Invalid credentials" });
 
     const userData = {
       _id: user._id,
@@ -155,26 +157,20 @@ app.post("/api/login", async (req, res) => {
       systemId: user.systemId || null,
     };
 
-    res.json({
-      message: "Login successful",
-      user: userData,
-    });
+    res.json({ message: "Login successful", user: userData });
   } catch (err) {
     res.status(500).json({ error: "Login error" });
   }
 });
 
-// ✅ FORGOT PASSWORD
+// FORGOT PASSWORD
 app.post("/api/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
-
     const user =
-      (await User.findOne({ email })) ||
-      (await Employee.findOne({ email }));
+      (await User.findOne({ email })) || (await Employee.findOne({ email }));
 
-    if (!user)
-      return res.status(404).json({ error: "Email not found" });
+    if (!user) return res.status(404).json({ error: "Email not found" });
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?email=${email}`;
 
@@ -199,11 +195,10 @@ app.post("/api/forgot-password", async (req, res) => {
   }
 });
 
-// ✅ RESET PASSWORD
+// RESET PASSWORD
 app.post("/api/reset-password", async (req, res) => {
   try {
     const { email, newPassword } = req.body;
-
     if (!email || !newPassword)
       return res.status(400).json({ error: "Missing fields" });
 
@@ -213,8 +208,7 @@ app.post("/api/reset-password", async (req, res) => {
       (await Employee.findOneAndUpdate({ email }, { password: hashedPassword })) ||
       (await User.findOneAndUpdate({ email }, { password: hashedPassword }));
 
-    if (!updated)
-      return res.status(404).json({ error: "User not found" });
+    if (!updated) return res.status(404).json({ error: "User not found" });
 
     res.json({ message: "Password updated successfully" });
   } catch (err) {
@@ -241,8 +235,34 @@ app.get("/api/openings", async (req, res) => {
   res.json(openings);
 });
 
-/* ================= OTHER ROUTES ================= */
+/* ================= IMPACT STATS ROUTES ================= */
 
+// GET all stats
+app.get("/api/impact-stats", async (req, res) => {
+  try {
+    const stats = await Impact.find();
+    res.json(stats);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// UPDATE specific stat
+app.put("/api/impact-stats/:id", async (req, res) => {
+  try {
+    const { target, suffix } = req.body;
+    const updatedStat = await Impact.findOneAndUpdate(
+      { id: req.params.id },
+      { target: Number(target), suffix },
+      { new: true, upsert: true } // Creates if doesn't exist
+    );
+    res.json(updatedStat);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+/* ================= OTHER ROUTES ================= */
 app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/projects", require("./routes/projectRoutes"));
 app.use("/api/employees", require("./routes/employeeRoutes"));
