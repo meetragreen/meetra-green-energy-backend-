@@ -47,6 +47,7 @@ const transporter = nodemailer.createTransport({
 
 /* ================= MODELS ================= */
 
+// User Model
 const userSchema = new mongoose.Schema(
   {
     fullName: { type: String, required: true },
@@ -57,9 +58,9 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 
+// Employee Model
 const employeeSchema = new mongoose.Schema(
   {
     employeeId: { type: String, required: true, unique: true },
@@ -71,11 +72,22 @@ const employeeSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 const Employee =
   mongoose.models.Employee || mongoose.model("Employee", employeeSchema);
 
-/* ================= UTIL FUNCTION ================= */
+// Job/Internship Model
+const OpeningSchema = new mongoose.Schema({
+  title: String,
+  location: String,
+  type: { type: String, enum: ["job", "internship"] },
+  experience: String, // For jobs
+  duration: String, // For internships
+  mode: String, // For internships
+  postedAt: { type: Date, default: Date.now },
+});
+const Opening = mongoose.model("Opening", OpeningSchema);
+
+/* ================= UTIL FUNCTIONS ================= */
 const generateSystemId = () => {
   const randomNum = Math.floor(1000 + Math.random() * 9000);
   return `MEETRA-${randomNum}`;
@@ -135,7 +147,6 @@ app.post("/api/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ error: "Invalid credentials" });
 
-    // ✅ REMOVE PASSWORD BEFORE SENDING
     const userData = {
       _id: user._id,
       fullName: user.fullName || user.name,
@@ -211,7 +222,26 @@ app.post("/api/reset-password", async (req, res) => {
   }
 });
 
-/* ================= IMPORT OTHER ROUTES ================= */
+/* ================= OPENINGS ROUTES ================= */
+
+// Add new job/internship
+app.post("/api/openings", async (req, res) => {
+  try {
+    const newOpening = new Opening(req.body);
+    await newOpening.save();
+    res.status(201).json({ message: "Added successfully!", data: newOpening });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all job/internship openings
+app.get("/api/openings", async (req, res) => {
+  const openings = await Opening.find().sort({ postedAt: -1 });
+  res.json(openings);
+});
+
+/* ================= OTHER ROUTES ================= */
 
 app.use("/api/applications", require("./routes/applicationRoutes"));
 app.use("/api/projects", require("./routes/projectRoutes"));
@@ -220,15 +250,14 @@ app.use("/api", require("./routes/surveyRoutes"));
 app.use("/api/staff", require("./routes/staffRoutes"));
 
 /* ================= STATIC FILES ================= */
-
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+/* ================= ROOT ================= */
 app.get("/", (req, res) => {
   res.send("🚀 Meetra Green Backend Running");
 });
 
 /* ================= START SERVER ================= */
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
 });
