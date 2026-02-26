@@ -19,7 +19,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "https://meetra-green-energy-frontend.vercel.app",
+      "https://www.meetragreen.com",
       process.env.FRONTEND_URL, // live frontend URL from Render env
     ],
     credentials: true,
